@@ -3,7 +3,7 @@
 A always-on desk display that shows real earthquake activity across Japan, updating within about a second of the Japan Meteorological Agency issuing a report. It runs on a Raspberry Pi Zero WH driving a Waveshare 4.2" e-paper panel, is built to run **unattended for years**, and was designed to prioritize one thing above all: knowing about a real earthquake as fast as the hardware physically allows.
 
 ![preview](preview.png)
-![preview](Example.jpg)
+![Example](Example.jpg)
 
 ## Overview
 
