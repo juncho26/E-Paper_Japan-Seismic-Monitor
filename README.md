@@ -20,7 +20,7 @@ It listens to [P2PQuake](https://www.p2pquake.net/), which relays JMA's official
 
 ## Hardware
 
-- Raspberry Pi Zero WH (or any Pi with a 40-pin GPIO header and Wi-Fi)
+- Raspberry Pi Zero WH
 - Waveshare 4.2" e-Paper Module **V2**, with partial-refresh support
 - A microSD card — ideally a high-endurance one, given the multi-year runtime this is built for
 
