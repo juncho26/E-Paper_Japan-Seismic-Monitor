@@ -1,6 +1,9 @@
 # runtime data written by main.py (last events cache)
 state/
 
+# Waveshare driver, copied in from their repo (see SETUP.md)
+waveshare_epd/
+
 # Python
 __pycache__/
 *.pyc
