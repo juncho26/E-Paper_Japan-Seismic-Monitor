@@ -38,42 +38,28 @@ It listens to [P2PQuake](https://www.p2pquake.net/), which relays JMA's official
 | `seismic-epaper.service` | The systemd unit that keeps this running persistently, with watchdog, unlimited-retry, CPU priority and memory settings baked in. |
 | `state/` | Created at runtime: the last few events, so a reboot starts on the last known picture. Safe to delete. |
 | `requirements.txt` | Python dependencies. |
+| `SETUP.md` | Step-by-step install guide for the Pi, with troubleshooting. |
 
 ## Quick start
 
-1. Flash Raspberry Pi OS Lite, enable SSH and Wi-Fi via Raspberry Pi Imager's advanced settings, and **note the username you choose** — you'll need it in every command below.
-2. SSH in, run `sudo raspi-config` → Interface Options → SPI → enable, reboot.
-3. Attach the panel (HAT version plugs directly onto the GPIO header; bare-panel version needs wiring per Waveshare's 4.2" V2 wiki).
-4. Clone Waveshare's driver and copy just the library folder in:
+The full, tested walkthrough — flashing the card, SSH, drivers, the service, hardening and a Wi-Fi-outage test, plus a troubleshooting table — is in **[SETUP.md](SETUP.md)**. The short version:
+
+1. Flash Raspberry Pi OS Lite with Raspberry Pi Imager (set hostname, username, 2.4 GHz Wi-Fi, enable SSH) and **note your username**.
+2. Enable SPI (`sudo raspi-config nonint do_spi 0`), attach the panel, reboot.
+3. Clone this repo to `~/seismic-epaper` and install the Python packages:
    ```bash
-   git clone https://github.com/waveshareteam/e-Paper.git
-   cp -r e-Paper/RaspberryPi_JetsonNano/python/lib/waveshare_epd ~/seismic-epaper/
-   ```
-5. Copy this project onto the Pi, then install dependencies:
-   ```bash
-   cd ~/seismic-epaper
    pip3 install -r requirements.txt --break-system-packages
+   sudo apt install -y libopenjp2-7 libfreetype6 libtiff6 libjpeg62-turbo libwebp7 liblcms2-2 libxcb1 libharfbuzz0b libfribidi0
    ```
-6. Test the renderer with zero hardware risk (`python3 render.py`), then test the real panel (`python3 main.py`, Ctrl+C to stop).
-7. **Before installing the service**, open `seismic-epaper.service` and confirm `User=`, `WorkingDirectory=`, and `ExecStart=` all match your actual username — not `pi`, unless that's genuinely what you set in step 1.
-8. Install and start it:
+   Pillow from pip needs those system libraries on Raspberry Pi OS Lite.
+4. Copy Waveshare's `waveshare_epd` driver folder into the project (see SETUP.md, step 5.3).
+5. Test: `python3 render.py` (no hardware), then `python3 main.py` (real panel).
+6. Install the service with your username filled in:
    ```bash
-   sudo cp seismic-epaper.service /etc/systemd/system/
-   sudo systemctl daemon-reload
-   sudo systemctl enable --now seismic-epaper
+   sed "s|User=pi|User=$USER|; s|/home/pi|/home/$USER|g" seismic-epaper.service | sudo tee /etc/systemd/system/seismic-epaper.service
+   sudo systemctl daemon-reload && sudo systemctl enable --now seismic-epaper
    ```
-9. Confirm it's healthy:
-   ```bash
-   systemctl status seismic-epaper                        # Active: active (running)
-   systemctl show seismic-epaper -p WatchdogUSec           # 3min 20s, not 0
-   ```
-10. Cap the journal so years of logs can't fill the SD card:
-    ```bash
-    sudo mkdir -p /etc/systemd/journald.conf.d
-    printf '[Journal]\nSystemMaxUse=50M\n' | sudo tee /etc/systemd/journald.conf.d/seismic-epaper.conf
-    sudo systemctl restart systemd-journald
-    ```
-11. Walk over and look at the actual panel. That's the only step that proves the SPI wiring is correct — everything above only proves the software is healthy.
+7. Apply the hardening settings below, reboot, and check the panel.
 
 ## Hardening the Pi itself (do once, matters over years)
 
