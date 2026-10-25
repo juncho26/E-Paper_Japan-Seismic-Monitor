@@ -1,0 +1,46 @@
+[Unit]
+Description=Japan seismic monitor on Waveshare 4.2" e-paper
+After=network-online.target
+Wants=network-online.target
+# Never permanently give up restarting, no matter how many times it's
+# crashed recently — this runs unattended for years, and the default
+# systemd rate-limit (which stops trying after N failures in a window)
+# is the wrong tradeoff here. Our own code already backs off internally
+# for the failures that are actually likely (network, hardware); systemd
+# restarting the whole process is the last-resort net underneath that.
+StartLimitIntervalSec=0
+
+[Service]
+# Type=notify + WatchdogSec catches real hangs (a deadlock, a stuck SPI
+# call), not just crashes — main.py pings the watchdog from its fallback
+# poll thread and calls sd_notify(READY=1) once startup succeeds.
+Type=notify
+WatchdogSec=200
+# Belt-and-suspenders alongside the READY=1 timing fix in main.py: even if
+# display init itself is slow (flaky SPI at boot), don't let systemd's
+# 90s default startup timeout kill a process that's still coming up.
+TimeoutStartSec=180
+User=pi
+WorkingDirectory=/home/pi/seismic-epaper
+ExecStart=/usr/bin/python3 /home/pi/seismic-epaper/main.py
+Restart=always
+RestartSec=15
+
+# Emergency responsiveness and long-run memory behaviour on a single-core,
+# 512MB Pi: a higher CPU priority so a render is never starved by other
+# jobs, a protected OOM score so the kernel kills something else first,
+# and fewer glibc malloc arenas so the threads don't each hoard memory.
+Nice=-5
+OOMScoreAdjust=-500
+Environment=MALLOC_ARENA_MAX=2
+Environment=PYTHONUNBUFFERED=1
+
+# Bound the journal's contribution to SD card wear/fill over years of
+# unattended logging. (This also needs a matching cap in
+# /etc/systemd/journald.conf if you want it enforced system-wide — see
+# the README.)
+LogRateLimitIntervalSec=30
+LogRateLimitBurst=200
+
+[Install]
+WantedBy=multi-user.target

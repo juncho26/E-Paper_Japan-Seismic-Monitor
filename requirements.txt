@@ -1,0 +1,6 @@
+requests
+Pillow
+RPi.GPIO
+spidev
+websocket-client
+gpiozero            # used by Waveshare's current driver (preinstalled on Raspberry Pi OS)
