@@ -1,0 +1,14 @@
+# runtime data written by main.py (last events cache)
+state/
+
+# Python
+__pycache__/
+*.pyc
+
+# output of `python3 render.py` (the README image lives in docs/)
+/preview.png
+
+# editor / OS
+.DS_Store
+.vscode/
+.idea/
