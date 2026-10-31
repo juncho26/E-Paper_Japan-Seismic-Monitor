@@ -303,12 +303,12 @@ SEA_SIDE = {
 WRONG_SEA_FACTOR = 3.0
 CROSSING_PENALTY = 40.0
 # Prefectures whose label must stay on their own sea (no slot on the other one is
-# even considered). Nagano is landlocked, so "nearest coast" is meaningless for it;
-# people think of it as the Sea of Japan side. Kagawa faces the Seto Inland Sea:
+# even considered). Nagano and Gunma are landlocked, so "nearest coast" is meaningless
+# for them; people think of them as the Sea of Japan side. Kagawa faces the Seto Inland Sea:
 # its label belongs on the south side, not across Chugoku on the Sea of Japan.
 # If that makes a layout impossible,
 # placement is retried with these treated as ordinary soft preferences.
-HARD_SIDE = {"Nagano", "Kagawa"}
+HARD_SIDE = {"Nagano", "Kagawa", "Gunma"}
 
 
 def _slot_side(center):
@@ -316,9 +316,11 @@ def _slot_side(center):
     if sides is None:
         sides = _cache["slot_sides"] = {(s[0], s[1]): s[2] for s in load_json("label_slots.json")}
     return sides.get((center[0], center[1]))
-# At most this many prefectures get a label; the rest are summarised as "+N".
-# 23 labels can't be laid out legibly on a 400x300 panel.
-MAX_LABELS = 12
+# Past this many labels the coastal layout can't avoid crossing leaders and costs
+# real time on a Pi Zero, so go straight to the column layout instead.
+COASTAL_MAX_LABELS = 26
+# Optional cap on labelled prefectures (the rest become "+N"). None = label them all.
+MAX_LABELS = None
 
 
 def _slot_candidates(it):
@@ -337,8 +339,10 @@ def _slot_candidates(it):
     return out
 
 
-def _place_in_order(items, font, blocked):
-    """Greedy: each label takes the cheapest free sea spot near its prefecture."""
+def _place_in_order(items, font, blocked, stuck=None):
+    """Greedy: each label takes the cheapest free sea spot near its prefecture.
+    If a label finds no spot, returns None; when a list is passed as `stuck`,
+    the label that failed is appended to it so the caller can retry."""
     placed = []
     for it in items:
         px, py = it["p"]
@@ -365,11 +369,30 @@ def _place_in_order(items, font, blocked):
             if cost < best_cost:
                 best, best_cost = (rect, (sx, sy), start), cost
         if best is None:
+            if stuck is not None:
+                stuck.append(it)
             return None
         placed.append({"text": it["text"], "rect": best[0], "center": best[1],
                        "start": best[2], "p": (px, py), "half_w": half_w,
                        "hard": it.get("hard", False), "side": it.get("side", 0)})
     return placed
+
+
+def _place_with_retry(order, font, blocked, max_retries=3):
+    """_place_in_order, but when a label gets stuck (typically one handled late
+    whose nearby sea spots are all taken) it is moved to the front and the pass
+    repeated, instead of discarding an otherwise good ordering. Without this, one
+    stuck label forced a worse ordering that pushed coastal labels (Shizuoka,
+    Wakayama) far from their prefectures."""
+    order = list(order)
+    for _ in range(max_retries + 1):
+        stuck = []
+        placed = _place_in_order(order, font, blocked, stuck)
+        if placed is not None or not stuck:
+            return placed
+        order.remove(stuck[0])
+        order.insert(0, stuck[0])
+    return None
 
 
 def _hard_ok(placed, blocked):
@@ -512,7 +535,7 @@ def place_labels_coastal(items, font, blocked):
     )
     best, best_score = None, None
     for make_order in orders:
-        placed = _place_in_order(make_order(), font, blocked)
+        placed = _place_with_retry(make_order(), font, blocked)
         if placed is None:
             continue
         placed = _tidy(placed, blocked)
@@ -539,8 +562,10 @@ def draw_prefecture_labels(draw, fonts, labels, project, active_prefs, left_y_ra
     if not items:
         return
     font = fonts[LABEL_FONT]
-    placed = place_labels_coastal(items, font, list(blocked))
-    if placed is None and any(it["hard"] for it in items):
+    placed = None
+    if len(items) <= COASTAL_MAX_LABELS:
+        placed = place_labels_coastal(items, font, list(blocked))
+    if placed is None and len(items) <= COASTAL_MAX_LABELS and any(it["hard"] for it in items):
         # a fixed side made the layout impossible: retry with plain preferences
         placed = place_labels_coastal([dict(it, hard=False) for it in items], font, list(blocked))
     if placed is None:
@@ -777,7 +802,7 @@ def build_frame(events, net=None):
     # the epicentre as the tie-break); the rest are summarised as "+N". Ripples still
     # cover every affected prefecture.
     label_prefs = set(active_prefs)
-    if len(label_prefs) > MAX_LABELS:
+    if MAX_LABELS and len(label_prefs) > MAX_LABELS:
         best_scale = {}
         for pt in (events[0].get("points") or []) if events else []:
             en = PREF_JA_TO_EN.get(pt.get("pref"))
