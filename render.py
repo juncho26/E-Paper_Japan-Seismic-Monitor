@@ -295,13 +295,30 @@ SEA_SIDE = {
     "Fukushima": 1, "Ibaraki": 1, "Tochigi": 1, "Gunma": -1, "Saitama": 1, "Chiba": 1,
     "Tokyo": 1, "Kanagawa": 1, "Niigata": -1, "Toyama": -1, "Ishikawa": -1, "Fukui": -1,
     "Yamanashi": 1, "Nagano": -1, "Gifu": 1, "Shizuoka": 1, "Aichi": 1, "Mie": 1,
-    "Shiga": -1, "Kyoto": -1, "Osaka": 0, "Hyogo": 0, "Nara": 1, "Wakayama": 1,
-    "Tottori": -1, "Shimane": -1, "Okayama": 0, "Hiroshima": 0, "Yamaguchi": 0,
-    "Tokushima": 1, "Kagawa": 0, "Ehime": 0, "Kochi": 1, "Fukuoka": -1, "Saga": -1,
+    "Shiga": -1, "Kyoto": -1, "Osaka": 1, "Hyogo": 0, "Nara": 1, "Wakayama": 1,
+    "Tottori": -1, "Shimane": -1, "Okayama": 1, "Hiroshima": 0, "Yamaguchi": 0,
+    "Tokushima": 1, "Kagawa": 1, "Ehime": 0, "Kochi": 1, "Fukuoka": -1, "Saga": -1,
     "Nagasaki": -1, "Kumamoto": -1, "Oita": 1, "Miyazaki": 1, "Kagoshima": 0,
 }
 WRONG_SEA_FACTOR = 3.0
 CROSSING_PENALTY = 40.0
+# Prefectures whose label must stay on their own sea (no slot on the other one is
+# even considered). Nagano is landlocked, so "nearest coast" is meaningless for it;
+# people think of it as the Sea of Japan side. Kagawa faces the Seto Inland Sea:
+# its label belongs on the south side, not across Chugoku on the Sea of Japan.
+# If that makes a layout impossible,
+# placement is retried with these treated as ordinary soft preferences.
+HARD_SIDE = {"Nagano", "Kagawa"}
+
+
+def _slot_side(center):
+    sides = _cache.get("slot_sides")
+    if sides is None:
+        sides = _cache["slot_sides"] = {(s[0], s[1]): s[2] for s in load_json("label_slots.json")}
+    return sides.get((center[0], center[1]))
+# At most this many prefectures get a label; the rest are summarised as "+N".
+# 23 labels can't be laid out legibly on a 400x300 panel.
+MAX_LABELS = 12
 
 
 def _slot_candidates(it):
@@ -311,6 +328,10 @@ def _slot_candidates(it):
     side = it.get("side", 0)
     if not side:
         return [(d, x, y, d) for x, y, d, _s in slots]
+    if it.get("hard"):
+        own = [(d, x, y, d) for x, y, d, sd in slots if sd == side]
+        if own:
+            return own
     out = [(d * (1.0 if sd == side else WRONG_SEA_FACTOR), x, y, d) for x, y, d, sd in slots]
     out.sort()
     return out
@@ -346,7 +367,8 @@ def _place_in_order(items, font, blocked):
         if best is None:
             return None
         placed.append({"text": it["text"], "rect": best[0], "center": best[1],
-                       "start": best[2], "p": (px, py), "half_w": half_w})
+                       "start": best[2], "p": (px, py), "half_w": half_w,
+                       "hard": it.get("hard", False), "side": it.get("side", 0)})
     return placed
 
 
@@ -414,6 +436,9 @@ def _swap_pass(placed, blocked, wants_swap, max_growth):
             a, b = placed[i], placed[j]
             if not wants_swap(a, b):
                 continue
+            if (a.get("hard") and _slot_side(b["center"]) != a["side"]) or \
+               (b.get("hard") and _slot_side(a["center"]) != b["side"]):
+                continue                    # a fixed-side label never changes sea
             trial = list(placed)
             trial[i], trial[j] = _refit(a, b["center"]), _refit(b, a["center"])
             if _leader_len(trial[i]) + _leader_len(trial[j]) > _leader_len(a) + _leader_len(b) + max_growth:
@@ -510,11 +535,14 @@ def draw_prefecture_labels(draw, fonts, labels, project, active_prefs, left_y_ra
     for name, clat, clon, _llat, _llon in labels:
         if name in active_prefs:
             items.append({"text": EN_TO_JA_SHORT.get(name, name), "p": project(clat, clon),
-                          "side": SEA_SIDE.get(name, 0)})
+                          "side": SEA_SIDE.get(name, 0), "hard": name in HARD_SIDE})
     if not items:
         return
     font = fonts[LABEL_FONT]
     placed = place_labels_coastal(items, font, list(blocked))
+    if placed is None and any(it["hard"] for it in items):
+        # a fixed side made the layout impossible: retry with plain preferences
+        placed = place_labels_coastal([dict(it, hard=False) for it in items], font, list(blocked))
     if placed is None:
         log.warning("coastal label placement failed, using columns")
         return draw_prefecture_labels_columns(draw, fonts, labels, project, active_prefs,
@@ -745,6 +773,27 @@ def build_frame(events, net=None):
                 continue  # unrecognized pref string — skip rather than mismatch silently
             active_prefs.add(pref_en)
 
+    # Label only the strongest MAX_LABELS prefectures (strongest shindo first, nearest
+    # the epicentre as the tie-break); the rest are summarised as "+N". Ripples still
+    # cover every affected prefecture.
+    label_prefs = set(active_prefs)
+    if len(label_prefs) > MAX_LABELS:
+        best_scale = {}
+        for pt in (events[0].get("points") or []) if events else []:
+            en = PREF_JA_TO_EN.get(pt.get("pref"))
+            if en:
+                best_scale[en] = max(best_scale.get(en, 0), pt.get("scale") or 0)
+        where = {n: (a, b) for n, a, b, _x, _y in labels}
+
+        def _rank(n):
+            far = 0.0
+            if lat is not None and lon is not None and n in where:
+                far = ((where[n][0] - lat) ** 2 + ((where[n][1] - lon) * 0.83) ** 2) ** 0.5
+            return (-best_scale.get(n, 0), far, n)
+
+        label_prefs = set(sorted(label_prefs, key=_rank)[:MAX_LABELS])
+    hidden = len(active_prefs) - len(label_prefs)
+
     # The info box is only as tall as it needs to be (see
     # compute_info_box_height) — the left label column starts right below
     # wherever that actually ends up, reclaiming whatever space a short
@@ -766,8 +815,17 @@ def build_frame(events, net=None):
     blocked = [(INFO_BOX[0] - 3, INFO_BOX[1] - 3, INFO_BOX[2] + 3, info_box_bottom + 3)]
     if net_box is not None:
         blocked.append((net_box[0] - 3, net_box[1] - 3, net_box[2] + 3, net_box[3] + 3))
-    draw_prefecture_labels(draw, fonts, labels, project, active_prefs, left_y_range,
+    if hidden > 0:
+        more = f"+{hidden}"
+        more_font = fonts[LABEL_FONT]
+        mw = int(more_font.getlength(more)) + 4
+        more_rect = (INFO_BOX[0], info_box_bottom + 4, INFO_BOX[0] + mw, info_box_bottom + 4 + LABEL_H)
+        blocked.append((more_rect[0] - 2, more_rect[1] - 2, more_rect[2] + 2, more_rect[3] + 2))
+    draw_prefecture_labels(draw, fonts, labels, project, label_prefs, left_y_range,
                            right_range, bottom_range, blocked)
+    if hidden > 0:
+        draw.rectangle(more_rect, fill=1)
+        draw.text((more_rect[0] + 2, more_rect[1] + LABEL_H // 2), more, font=more_font, fill=0, anchor="lm")
 
     draw_info_box(draw, fonts, events, INFO_BOX)
     if net_box is not None:
