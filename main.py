@@ -1,31 +1,34 @@
 """
-main.py — persistent process for the Pi, hardened for years of unattended
-operation as well as tuned for emergency responsiveness.
+main.py — the long-running program on the Raspberry Pi.
 
-Responsiveness (unchanged from before):
-Primary path is a live WebSocket connection to P2PQuake
-(wss://api.p2pquake.net/v2/ws) — a new event triggers a partial refresh
-within about a second of JMA issuing it. A slow polling fallback (60s)
-runs alongside it purely as a safety net. Every event-triggered push is a
-partial refresh; full refreshes live on their own independent clock so a
-ghosting cleanup can never delay an emergency update.
+What it does
+    Listens for earthquake reports from P2PQuake (which relays the Japan
+    Meteorological Agency's bulletins) and draws each new one on the e-paper
+    panel. The picture itself is built by render.py; Wi-Fi status for the
+    "no network" badge comes from netstatus.py.
 
-What's new here is everything to do with running this for years without
-a human ever needing to intervene:
+How it stays fast
+    The primary path is a live WebSocket connection (wss://api.p2pquake.net/v2/ws),
+    so a new report is drawn within about a second of being published. A slow
+    HTTP poll (every 60 s, one tiny request) runs alongside as a safety net in
+    case the socket dies silently. Every event is drawn as a quick partial
+    refresh; the slow full-screen refresh that clears ghosting runs on its own
+    schedule so it can never delay an urgent update.
 
-- Exponential backoff (capped) on every network failure, instead of
-  hammering the API or spinning tight on a dead connection.
-- A systemd watchdog heartbeat, so a genuine hang (not a crash — a
-  deadlock, a stuck SPI call) still gets caught and restarted, which a
-  plain crash-only Restart= policy would miss entirely.
-- Every hardware call (SPI/GPIO through the Waveshare driver) is wrapped
-  so a single flaky transaction logs and retries rather than taking the
-  whole process down.
-- Interval timers use time.monotonic(), not time.time(), so an NTP clock
-  correction after boot can't cause a spurious immediate (or indefinitely
-  delayed) full refresh.
-- A real startup retry loop: the first fetch keeps trying with backoff
-  instead of giving up after one attempt and leaving the panel blank.
+How it stays up for years without attention
+    - Exponential backoff (capped at 30 s) on every network failure, instead of
+      hammering the API or spinning on a dead connection.
+    - A systemd watchdog heartbeat, so a genuine hang (a deadlock, a stuck SPI
+      call) is caught and restarted, not just a crash.
+    - Every display call (SPI/GPIO through Waveshare's driver) is wrapped so one
+      flaky transaction is logged and retried rather than killing the process.
+    - Interval timers use time.monotonic(), so a clock correction after boot
+      (a Pi Zero has no battery-backed clock) can't trigger a spurious or
+      indefinitely delayed refresh.
+    - A real startup retry loop: the first fetch keeps trying with backoff
+      instead of giving up and leaving the panel blank. The last events are
+      cached on disk, so after a reboot the panel is never blank while the
+      network comes up.
 """
 
 import json

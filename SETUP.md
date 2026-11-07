@@ -1,6 +1,6 @@
 # Setup guide: Raspberry Pi Zero WH + Waveshare 4.2" e-Paper V2
 
-A start-to-finish guide that has been walked through on real hardware, including the snags people actually hit. Every command is labelled with where it runs:
+A start-to-finish guide that has been walked through on real hardware, including the snags people actually hit. For what the project is, see the [README](README.md); for parts and wiring, see [docs/HARDWARE.md](docs/HARDWARE.md). You can also try the screen on any computer first with `python3 render.py --demo`. Every command is labelled with where it runs:
 
 - `# MAC` / `# PC` — a normal terminal on your own computer
 - `# PI` — in an SSH session on the Raspberry Pi
@@ -63,7 +63,7 @@ Expected: `/dev/spidev0.0  /dev/spidev0.1`.
 
 ## 4. Attach the panel
 
-Power the Pi **off** first. Plug the display HAT onto the 40-pin header (or wire the bare panel per Waveshare's 4.2" V2 wiki), then power on.
+Power the Pi **off** first. Connect the display using the wiring table in [docs/HARDWARE.md](docs/HARDWARE.md) (or plug in the HAT version straight onto the header), then power on.
 
 ## 5. Get the code
 
@@ -71,7 +71,7 @@ Power the Pi **off** first. Plug the display HAT onto the 40-pin header (or wire
 # PI
 sudo apt install -y git
 cd ~
-git clone <your-repo-url> seismic-epaper
+git clone https://github.com/juncho26/E-Paper_Japan-Seismic-Monitor.git seismic-epaper
 cd seismic-epaper
 ```
 All project files (`main.py`, `render.py`, `data/`, `fonts/` …) should sit directly inside `~/seismic-epaper`.
@@ -121,7 +121,7 @@ Both files should be listed. (`ls … | head` only shows the first few files alp
 ```bash
 # PI
 cd ~/seismic-epaper
-python3 render.py
+python3 render.py            # live data; use --demo for a made-up sample
 ```
 To look at it, run this **on your computer, in a separate terminal window — not in the SSH session**:
 ```bash
@@ -240,7 +240,7 @@ If `seismic-epaper.service` itself changed, redo step 7 and run `sudo systemctl 
 | Background `sudo` job shows `Stopped` | Run `sudo -v` first (step 9) |
 | `ssh: Connection refused` | Step 1: create the `ssh` file on the boot partition |
 | `REMOTE HOST IDENTIFICATION HAS CHANGED` | `ssh-keygen -R seismic-pi.local` |
-| Panel blank, no errors | Re-seat the HAT/ribbon; stop the service before testing by hand |
+| Panel blank, no errors | Check wiring against docs/HARDWARE.md; re-seat the cable; stop the service before testing by hand |
 | Service restarts repeatedly | `journalctl -u seismic-epaper -n 60 --no-pager` |
 
 ## Handy commands

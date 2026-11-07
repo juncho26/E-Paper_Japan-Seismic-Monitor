@@ -1,0 +1,215 @@
+[
+ {
+  "_note": "Illustrative sample for testing; not a real earthquake.",
+  "id": "sample-1",
+  "code": 551,
+  "time": "2026/11/01 07:15:00.000",
+  "earthquake": {
+   "time": "2026/11/01 07:15:00",
+   "hypocenter": {
+    "name": "紀伊半島沖",
+    "latitude": 33.2,
+    "longitude": 136.9,
+    "depth": 40,
+    "magnitude": 6.1
+   },
+   "maxScale": 30
+  },
+  "points": [
+   {
+    "pref": "北海道",
+    "addr": "北海道○○市",
+    "isArea": false,
+    "scale": 20
+   },
+   {
+    "pref": "青森県",
+    "addr": "青森県○○市",
+    "isArea": false,
+    "scale": 20
+   },
+   {
+    "pref": "岩手県",
+    "addr": "岩手県○○市",
+    "isArea": false,
+    "scale": 20
+   },
+   {
+    "pref": "宮城県",
+    "addr": "宮城県○○市",
+    "isArea": false,
+    "scale": 20
+   },
+   {
+    "pref": "福島県",
+    "addr": "福島県○○市",
+    "isArea": false,
+    "scale": 20
+   },
+   {
+    "pref": "栃木県",
+    "addr": "栃木県○○市",
+    "isArea": false,
+    "scale": 20
+   },
+   {
+    "pref": "茨城県",
+    "addr": "茨城県○○市",
+    "isArea": false,
+    "scale": 20
+   },
+   {
+    "pref": "千葉県",
+    "addr": "千葉県○○市",
+    "isArea": false,
+    "scale": 20
+   },
+   {
+    "pref": "埼玉県",
+    "addr": "埼玉県○○市",
+    "isArea": false,
+    "scale": 20
+   },
+   {
+    "pref": "静岡県",
+    "addr": "静岡県○○市",
+    "isArea": false,
+    "scale": 30
+   },
+   {
+    "pref": "東京都",
+    "addr": "東京都○○市",
+    "isArea": false,
+    "scale": 30
+   },
+   {
+    "pref": "神奈川県",
+    "addr": "神奈川県○○市",
+    "isArea": false,
+    "scale": 30
+   },
+   {
+    "pref": "山梨県",
+    "addr": "山梨県○○市",
+    "isArea": false,
+    "scale": 30
+   },
+   {
+    "pref": "岐阜県",
+    "addr": "岐阜県○○市",
+    "isArea": false,
+    "scale": 30
+   },
+   {
+    "pref": "大阪府",
+    "addr": "大阪府○○市",
+    "isArea": false,
+    "scale": 30
+   },
+   {
+    "pref": "徳島県",
+    "addr": "徳島県○○市",
+    "isArea": false,
+    "scale": 30
+   },
+   {
+    "pref": "香川県",
+    "addr": "香川県○○市",
+    "isArea": false,
+    "scale": 30
+   },
+   {
+    "pref": "和歌山県",
+    "addr": "和歌山県○○市",
+    "isArea": false,
+    "scale": 30
+   },
+   {
+    "pref": "岡山県",
+    "addr": "岡山県○○市",
+    "isArea": false,
+    "scale": 30
+   },
+   {
+    "pref": "長野県",
+    "addr": "長野県○○市",
+    "isArea": false,
+    "scale": 20
+   },
+   {
+    "pref": "群馬県",
+    "addr": "群馬県○○市",
+    "isArea": false,
+    "scale": 20
+   },
+   {
+    "pref": "山形県",
+    "addr": "山形県○○市",
+    "isArea": false,
+    "scale": 20
+   },
+   {
+    "pref": "新潟県",
+    "addr": "新潟県○○市",
+    "isArea": false,
+    "scale": 20
+   }
+  ]
+ },
+ {
+  "_note": "Illustrative sample for testing; not a real earthquake.",
+  "id": "sample-2",
+  "code": 551,
+  "time": "2026/11/07 03:12:00.000",
+  "earthquake": {
+   "time": "2026/11/07 03:12:00",
+   "hypocenter": {
+    "name": "千葉県東方沖",
+    "latitude": 35.3,
+    "longitude": 140.6,
+    "depth": 30,
+    "magnitude": 3.4
+   },
+   "maxScale": 20
+  },
+  "points": [
+   {
+    "pref": "千葉県",
+    "addr": "千葉県銚子市",
+    "isArea": false,
+    "scale": 20
+   },
+   {
+    "pref": "茨城県",
+    "addr": "茨城県鹿嶋市",
+    "isArea": false,
+    "scale": 10
+   }
+  ]
+ },
+ {
+  "_note": "Illustrative sample for testing; not a real earthquake.",
+  "id": "sample-3",
+  "code": 551,
+  "time": "2026/11/06 21:48:00.000",
+  "earthquake": {
+   "time": "2026/11/06 21:48:00",
+   "hypocenter": {
+    "name": "熊本県熊本地方",
+    "latitude": 32.8,
+    "longitude": 130.8,
+    "depth": 10,
+    "magnitude": 2.5
+   },
+   "maxScale": 10
+  },
+  "points": [
+   {
+    "pref": "熊本県",
+    "addr": "熊本県熊本市",
+    "isArea": false,
+    "scale": 10
+   }
+  ]
+ }
+]

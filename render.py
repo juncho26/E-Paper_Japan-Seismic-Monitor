@@ -6,6 +6,16 @@ recent JMA-relayed earthquake event.
 No browser, no HTML/JS involved — this draws directly with Pillow, which is
 the right approach for a Pi Zero: SPI panels only accept a raw pixel buffer,
 and Chromium-class rendering is impractical on that hardware anyway.
+
+You can run this file on any computer, with no e-paper panel, to see what the
+display will look like:
+
+    python3 render.py --demo                      # bundled sample event, no network
+    python3 render.py --sample samples/large.json # a 23-prefecture event
+    python3 render.py --demo --badge              # with the "no network" badge
+    python3 render.py                             # the latest real events (needs internet)
+
+Each command writes preview.png (change it with --out FILE).
 """
 
 import json
@@ -29,9 +39,9 @@ FONT_PATH = os.path.join(BASE_DIR, "fonts", "NotoSansJP-Bold.ttf")
 # how to regenerate it if you ever hit a genuinely missing glyph.
 
 W, H = 400, 300                     # Waveshare 4.2" V2 native resolution
-MAP_BOX = (4, 4, 396, 296)          # full canvas, small margin — no side column anymore
-INFO_BOX = (4, 4, 180)               # x0, y0, x1 — height is computed from actual content now
-BOUNDS = (30.7, 45.8, 128.6, 146.2)  # lat0, lat1, lon0, lon1 — same frame as the web version
+MAP_BOX = (4, 4, 396, 296)          # the map fills the whole canvas, with a small margin
+INFO_BOX = (4, 4, 180)               # x0, y0, x1 — the height is computed from the content
+BOUNDS = (30.7, 45.8, 128.6, 146.2)  # lat0, lat1, lon0, lon1 of the map area (degrees)
 
 HISTORY_LIMIT = 8
 API_URL = "https://api.p2pquake.net/v2/history?codes=551&limit=%d" % HISTORY_LIMIT
@@ -1078,9 +1088,37 @@ def fetch_latest_id():
     return data[0].get("id") if data else None
 
 
+def _demo_net_info():
+    """Made-up Wi-Fi state, only to preview the 'no network' badge."""
+    return {"hostname": "demo", "wifi_connected": False, "wifi_state": "unavailable",
+            "active_ssid": "", "ip": "", "error": "",
+            "saved": [("HomeWiFi", False), ("PhoneHotspot", True)]}
+
+
+def main(argv=None):
+    """Render one frame to a PNG, without any e-paper hardware."""
+    import argparse
+    p = argparse.ArgumentParser(description="Render the e-paper screen to a PNG for preview.")
+    src = p.add_mutually_exclusive_group()
+    src.add_argument("--demo", action="store_true",
+                     help="use the bundled sample event (samples/small.json); no network needed")
+    src.add_argument("--sample", metavar="FILE",
+                     help="use events from a JSON file in P2PQuake's format (see samples/)")
+    p.add_argument("--badge", action="store_true", help="draw the 'no network' badge as well")
+    p.add_argument("--out", default=os.path.join(BASE_DIR, "preview.png"),
+                   help="output PNG path (default: preview.png next to render.py)")
+    args = p.parse_args(argv)
+
+    if args.demo or args.sample:
+        path = args.sample or os.path.join(BASE_DIR, "samples", "small.json")
+        with open(path, encoding="utf-8") as f:
+            events = json.load(f)
+    else:
+        events = fetch_events()
+    frame = build_frame(events, net=_demo_net_info() if args.badge else None)
+    frame.save(args.out)
+    print("wrote", args.out)
+
+
 if __name__ == "__main__":
-    # standalone test: renders a PNG you can inspect without any e-paper hardware
-    evs = fetch_events()
-    frame = build_frame(evs)
-    frame.save(os.path.join(BASE_DIR, "preview.png"))
-    print("wrote preview.png")
+    main()
